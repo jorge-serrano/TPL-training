@@ -7,9 +7,82 @@ ConcurrentDictionary<string, string> capitals = new();
 ConcurrentQueue<string> capitalsQueue = new ConcurrentQueue<string>();
 ConcurrentStack<int> numbersStack = new ConcurrentStack<int>();
 //ConcurrentDictionary<string, string> capitals = new(new InsensitiveComparer());
+ConcurrentBag<int> numbersBag = new ConcurrentBag<int>();
+BlockingCollection<int> messages = new BlockingCollection<int>(
+      new ConcurrentBag<int>(), 10); /* max 10 elements to block thread */
+CancellationTokenSource cts = new CancellationTokenSource();
+Random random = new Random();
+
 Console.WriteLine("Hello, World!");
 //ConCurrentDict();
-ConcurrentQueue();
+//ConcurrentQueue();
+//ConcurrentBags();
+BlockingCollections();
+
+void BlockingCollections()
+{
+    Task.Factory.StartNew(ProduceAndConsume, cts.Token);
+
+    Console.ReadKey();
+    cts.Cancel();
+}
+
+void ProduceAndConsume()
+{
+    var producer = Task.Factory.StartNew(RunProducer);
+    var consumer = Task.Factory.StartNew(RunConsumer);
+
+    try
+    {
+        Task.WaitAll(new[] { producer, consumer }, cts.Token);
+    }
+    catch (AggregateException ae)
+    {
+        ae.Handle(e => true);
+    }
+}
+void RunConsumer()
+{
+    foreach (var item in messages.GetConsumingEnumerable())
+    {
+        cts.Token.ThrowIfCancellationRequested();
+        Console.WriteLine($"-{item}");
+        Thread.Sleep(random.Next(3000));
+    }
+}
+
+void RunProducer()
+{
+
+    while (true)
+    {
+        cts.Token.ThrowIfCancellationRequested();
+        int i = random.Next(100);
+        messages.Add(i);
+        Console.WriteLine($"+{i}\t");
+        Thread.Sleep(random.Next(1000));
+    }
+}
+void ConcurrentBags()
+{
+    var tasks = new List<Task>();
+    for (int i = 0; i < 20; i++)
+    {
+        tasks.Add(Task.Factory.StartNew(() => { numbersBag.Add(i); }));
+        tasks.Add(Task.Factory.StartNew(() => {
+            int n = -1;
+            if (numbersBag.TryPeek(out n))
+            {
+                Console.Write(Task.CurrentId);
+                Console.WriteLine($" Peek n= {n}");
+            }
+                
+        }));
+    }
+
+    Task.WaitAll(tasks.ToArray());
+}
+
 void ConCurrentDict()
 {
     var addedFirst = capitals.TryAdd("USA", "Washington");

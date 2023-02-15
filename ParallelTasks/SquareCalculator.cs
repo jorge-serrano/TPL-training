@@ -10,6 +10,7 @@ namespace ParallelTasks
 {
     public class SquareCalculator
     {
+        //Just a comment
         [Benchmark]
         public void SquareEachValue() { 
             const int count = 1000;
